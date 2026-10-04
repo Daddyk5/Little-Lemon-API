@@ -1,0 +1,66 @@
+LITTLE LEMON API - TEST USERS, GROUPS AND TOKENS
+================================================
+
+Server:       http://127.0.0.1:8000
+Admin panel:  http://127.0.0.1:8000/admin/
+Auth header:  Authorization: Token <token>
+
+The database (db.sqlite3) is already migrated and populated.
+The tokens below are fixed by migration 0003_sample_data, so they stay valid
+even if db.sqlite3 is deleted and "python manage.py migrate" is run again.
+
+ID  USERNAME    PASSWORD      GROUP                     TOKEN
+--  ----------  ------------  ------------------------  ----------------------------------------
+1   admin       Admin@12345   superuser (no group)      e9c025a2eaec0ee70c583b707d8ccf32e60cd7db
+2   manager1    Manager@123   Manager                   86fb8ea7454c5165a2f6520b7d1aa7e68e35ea5d
+3   delivery1   Delivery@123  Delivery crew             3c9eebc4890312f300166e189104bd7ad99a6f43
+4   customer1   Customer@123  none (customer)           2d363bbd033a6fa70b351a66d1e749eb003c1e7d
+5   customer2   Customer@123  none (customer)           b49e114462c97a8204b11636cc7559ffe774f271
+
+A new token can also be requested at any time:
+  POST /auth/token/login/   body: username=<username>, password=<password>
+
+GROUPS
+------
+Manager        -> manager1
+Delivery crew  -> delivery1
+Customers      -> any authenticated user with no group (customer1, customer2, newly registered users)
+
+SAMPLE DATA
+-----------
+Categories: 1 Main (main), 2 Dessert (dessert), 3 Drinks (drinks)
+Menu items:
+  1 Beef Pasta      12.00  category 1  featured (item of the day)
+  2 Tomato Pasta     5.00  category 1
+  3 Grilled Fish    15.00  category 1
+  4 Chocolate Cake   6.50  category 2
+  5 Ice Cream        4.00  category 2
+  6 Lemonade         3.00  category 3
+
+ENDPOINTS
+---------
+POST   /auth/users/                              register (username, email, password)
+POST   /auth/token/login/                        get token
+GET    /auth/users/me/                           current user
+GET    /api/categories                           any authenticated user
+POST   /api/categories                           admin only
+GET    /api/menu-items                           all roles (?page= ?ordering=price ?category=1 ?category__title=Main ?search=pasta)
+POST   /api/menu-items                           admin or manager
+GET    /api/menu-items/{id}                      all roles
+PUT/PATCH/DELETE /api/menu-items/{id}            admin or manager ({"featured": true} = item of the day)
+GET/POST /api/groups/manager/users               admin only
+DELETE /api/groups/manager/users/{userId}        admin only
+GET/POST /api/groups/delivery-crew/users         admin or manager
+DELETE /api/groups/delivery-crew/users/{userId}  admin or manager
+GET/POST/DELETE /api/cart/menu-items             customers
+GET    /api/orders                               customer: own / manager: all / delivery crew: assigned
+POST   /api/orders                               customer (creates order from cart)
+GET    /api/orders/{orderId}                     owner, manager, or assigned delivery crew
+PUT/PATCH /api/orders/{orderId}                  manager: delivery_crew + status / delivery crew: status only
+DELETE /api/orders/{orderId}                     manager or admin
+
+THROTTLING
+----------
+/api/menu-items and /api/categories: anonymous 5/minute, authenticated 10/minute
+(rates in LittleLemon/settings.py -> REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']).
+If you get HTTP 429, wait one minute.
